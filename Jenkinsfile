@@ -47,7 +47,7 @@ pipeline {
                                           passwordVariable: 'PASS')]) {
             sh '''
               echo $PASS | docker login -u $USER --password-stdin
-              docker build -t $IMAGE .
+              docker build --platform=linux/amd64 -t $IMAGE .
               docker logout
             '''
                 }
@@ -73,7 +73,7 @@ pipeline {
                   docker pull $IMAGE
                   docker stop calculator-app || true
                   docker rm calculator-app || true
-                  docker run -d -p 5000:5000 --name calculator-app $IMAGE
+                  docker run -d --platform=linux/amd64 -p 5000:5000 --name calculator-app $IMAGE
                 '''
             }
         }
