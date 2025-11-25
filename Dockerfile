@@ -1,4 +1,10 @@
-FROM python:3.10-slim
+FROM python:3.12-slim
+
 WORKDIR /app
-COPY . /app
-CMD ["python3", "src/calc.py"]
+
+# Copy only your calculator file
+COPY calc.py .
+
+RUN pip install pytest
+
+CMD ["python", "calc.py"]
