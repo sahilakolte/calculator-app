@@ -2,41 +2,71 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB = credentials('dockerhub')    // Add from Jenkins credentials
-        IMAGE_NAME = "sahilakolte/calculator-app"
+        IMAGE = "sahilakolte/calculator-app:latest"
+        VENV = ".venv"
+        PYTHON = "/usr/bin/python3" 
     }
 
     stages {
 
-        stage('Clone Repository') {
+        stage('Checkout') {
             steps {
-                git 'https://github.com/sahilakolte/calculator-app'
+                checkout([$class: 'GitSCM',
+                  branches: [[name: '*/main']],
+                  userRemoteConfigs: [[
+                    url: 'https://github.com/sahilakolte/calculator-app.git',
+                    credentialsId: 'github'
+                  ]]
+                ])
+            }
+        }
+
+        stage('Create Virtual Environment') {
+            steps {
+                sh '$PYTHON -m venv $VENV'
+                sh '$VENV/bin/pip install --upgrade pip'
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh 'pip install -r requirements.txt'
+                sh '$VENV/bin/pip install -r requirements.txt'
             }
         }
 
         stage('Run Tests') {
             steps {
-                sh 'pytest'
+                sh '$VENV/bin/pytest -v'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t ${IMAGE_NAME}:latest ."
-                sh "docker images"
+                sh 'docker build -t $IMAGE .'
             }
         }
 
-        stage('Push to DockerHub') {
+        stage('Push Docker Image') {
             steps {
-                sh "echo ${DOCKERHUB_PSW} | docker login -u ${DOCKERHUB_USR} --password-stdin"
-                sh "docker push ${IMAGE_NAME}:latest"
+                withCredentials([usernamePassword(credentialsId: 'dockerhub',
+                                                  usernameVariable: 'USER',
+                                                  passwordVariable: 'PASS')]) {
+                    sh '''
+                      echo $PASS | docker login -u $USER --password-stdin
+                      docker push $IMAGE
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                sh '''
+                  docker pull $IMAGE
+                  docker stop calculator-app || true
+                  docker rm calculator-app || true
+                  docker run -d -p 5000:5000 --name calculator-app $IMAGE
+                '''
             }
         }
     }

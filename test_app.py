@@ -1,4 +1,4 @@
-from calculator import add, sub, mul, div
+from app import add, sub, mul, div
 
 def test_add():
     assert add(2, 3) == 5
